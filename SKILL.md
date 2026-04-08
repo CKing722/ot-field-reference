@@ -1,6 +1,6 @@
------
+---
 
-## name: ot-field-reference
+name: ot-field-reference
 description: Offline reference for OT/ICS cybersecurity professionals. Looks up Purdue Model levels, IEC 62443 foundational requirements and zones, NIST SP 800-82r3 control overlays, and classifies OT assets by Purdue level + IEC zone. Use whenever the user asks about Purdue levels, IEC 62443, NIST 800-82, OT/ICS controls, asset classification (PLC, RTU, HMI, historian, engineering workstation, etc.), or which security controls apply to a specific layer of an industrial network.
 metadata:
 homepage: https://github.com/CKing722/ot-field-reference
