@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html>
 <head>
 <meta charset="UTF-8">
@@ -10,601 +9,647 @@
 // =====================================================================
 // OT FIELD REFERENCE — AI Edge Gallery Skill
 // Purdue Model + IEC 62443-3-3 + NIST SP 800-82r3
-// Built for CK / Ghost Nexus aesthetic (gold #d4a843 on dark)
 // =====================================================================
 
-// ––––– REFERENCE DATA: PURDUE ENTERPRISE REFERENCE ARCHITECTURE –––––
-const PURDUE = {
-“0”: {
-name: “Level 0 — Physical Process”,
-aka: “Process / Equipment Layer”,
-description: “The physical equipment performing the actual industrial process. Sensors measuring physical phenomena and actuators acting on the process.”,
-assets: [“Sensors (temperature, pressure, flow, level)”, “Actuators (valves, motors, pumps)”, “Drives”, “Transmitters”, “Limit switches”, “Analyzers”],
-protocols: [“4–20 mA analog”, “HART”, “Foundation Fieldbus”, “Profibus PA”, “IO-Link”, “AS-i”],
-typical_threats: [“Physical tampering”, “Sensor spoofing”, “Signal injection”, “Calibration manipulation”],
-iec_zone: “Cell/Area Zone (operational)”,
-notes: “Often overlooked in cyber programs but increasingly targeted (e.g., Triton/Trisis-style attacks aim down to this layer via L1 controllers).”
-},
-“1”: {
-name: “Level 1 — Basic Control”,
-aka: “Intelligent Devices Layer”,
-description: “Devices that directly monitor and control the physical process. Real-time deterministic control loops execute here.”,
-assets: [“PLCs (Programmable Logic Controllers)”, “RTUs (Remote Terminal Units)”, “DCS controllers”, “Safety Instrumented Systems (SIS)”, “Variable Frequency Drives (VFDs)”, “Protective relays”],
-protocols: [“Modbus RTU/TCP”, “EtherNet/IP”, “PROFINET”, “DNP3”, “IEC 61850 GOOSE/SV”, “CIP”, “OPC UA (sometimes)”],
-typical_threats: [“Logic manipulation”, “Firmware tampering”, “Stuxnet-style payload injection”, “Denial of control”, “Unauthorized program download”],
-iec_zone: “Cell/Area Zone (control)”,
-notes: “Highest-impact layer for safety. SIS should be in its own zone, air-gapped or unidirectionally connected to the BPCS where possible.”
-},
-“2”: {
-name: “Level 2 — Area Supervisory Control”,
-aka: “Control System / HMI Layer”,
-description: “Supervisory systems for monitoring and controlling a specific area or process unit. Operators interact with the process here.”,
-assets: [“HMIs (Human-Machine Interfaces)”, “SCADA servers (local)”, “Engineering workstations (EWS)”, “Local historians”, “Alarm servers”, “Batch servers”],
-protocols: [“OPC UA/DA/HDA”, “Modbus TCP”, “EtherNet/IP”, “PROFINET”, “Proprietary vendor protocols (Siemens S7, Rockwell, etc.)”],
-typical_threats: [“Credential theft on EWS”, “HMI defacement / operator deception”, “Project file tampering”, “Lateral movement to L1”, “Unauthorized engineering access”],
-iec_zone: “Cell/Area Zone (supervisory)”,
-notes: “EWS is the crown jewel — owns it, owns the PLCs. Should be hardened, app-allowlisted, and monitored heavily.”
-},
-“3”: {
-name: “Level 3 — Site Operations”,
-aka: “Manufacturing Operations / Site Control”,
-description: “Site-wide systems that manage production workflow. Aggregates data from multiple L2 areas. The boundary between OT and IT lives just above here.”,
-assets: [“MES (Manufacturing Execution System)”, “Plant historian (e.g., PI Server)”, “Domain controllers (OT domain)”, “Patch/AV management servers”, “Site engineering servers”, “Production scheduling servers”, “Jump servers”],
-protocols: [“OPC UA”, “SQL”, “HTTPS”, “SMB”, “Kerberos”, “LDAP”, “WSUS”],
-typical_threats: [“Ransomware (most common entry point for OT impact)”, “Lateral movement from IT”, “Credential harvesting”, “Supply-chain compromise via patch servers”],
-iec_zone: “Site Manufacturing Zone”,
-notes: “This is where most ransomware actually lands and where it stops production. Treat L3 as your last line of defense before the plant floor.”
-},
-“3.5”: {
-name: “Level 3.5 — Industrial DMZ”,
-aka: “iDMZ / OT DMZ”,
-description: “The demilitarized zone that brokers all traffic between IT (L4/L5) and OT (L3 and below). No direct IT-to-OT connections should exist.”,
-assets: [“Reverse proxies”, “Replication historian (DMZ-side)”, “Jump hosts / bastion hosts”, “Patch staging servers”, “AV definition relay”, “Remote access gateways (Cyolo, Dispel, Secomea, etc.)”, “Data diodes / unidirectional gateways”],
-protocols: [“HTTPS (terminated)”, “Reverse-proxied OPC UA”, “SFTP”, “Authenticated jump-host RDP/SSH”],
-typical_threats: [“Misconfigured firewall rules”, “Dual-homed hosts”, “Unauthorized remote access”, “DMZ-host compromise → OT pivot”],
-iec_zone: “Conduit (between Enterprise and Site Manufacturing zones)”,
-notes: “Per IEC 62443 and NIST 800-82, the iDMZ is mandatory architecture, not optional. Every protocol crossing must terminate here.”
-},
-“4”: {
-name: “Level 4 — Site Business Planning & Logistics”,
-aka: “Site IT / Business Network”,
-description: “Site-level business systems. ERP modules, email, file servers, scheduling, inventory. Standard enterprise IT infrastructure.”,
-assets: [“ERP terminals”, “Email servers”, “File servers”, “Site IT domain controllers”, “Business workstations”, “Print servers”],
-protocols: [“HTTPS”, “SMTP”, “SMB”, “Kerberos”, “LDAP”, “DNS”],
-typical_threats: [“Phishing”, “Ransomware”, “Business email compromise”, “Initial access vector for OT attacks”],
-iec_zone: “Enterprise Zone”,
-notes: “Treated as ‘IT’ for cybersecurity ownership, but proximity to OT means compromise here is a precursor to plant impact.”
-},
-“5”: {
-name: “Level 5 — Enterprise Network”,
-aka: “Corporate / Enterprise IT”,
-description: “Corporate-wide IT infrastructure. Cloud services, corporate WAN, enterprise apps, internet edge.”,
-assets: [“Corporate ERP (SAP, Oracle)”, “Cloud services (M365, Azure, AWS)”, “Enterprise data centers”, “Corporate WAN”, “Internet edge / perimeter”],
-protocols: [“HTTPS”, “Cloud APIs”, “SD-WAN”, “MPLS”, “Standard internet protocols”],
-typical_threats: [“Standard enterprise threats — phishing, credential stuffing, supply chain, etc.”],
-iec_zone: “Enterprise Zone”,
-notes: “Maximum distance from the process. Compromise here is an OT problem only when iDMZ controls fail.”
-}
+// ---------- PURDUE MODEL ----------
+var PURDUE = {
+  "0": {
+    name: "Level 0 — Physical Process",
+    aka: "Process / Equipment Layer",
+    description: "Physical equipment performing the industrial process. Sensors measuring physical phenomena and actuators acting on the process.",
+    assets: ["Sensors (temperature, pressure, flow, level)", "Actuators (valves, motors, pumps)", "Drives", "Transmitters", "Limit switches", "Analyzers"],
+    protocols: ["4-20 mA analog", "HART", "Foundation Fieldbus", "Profibus PA", "IO-Link", "AS-i"],
+    threats: ["Physical tampering", "Sensor spoofing", "Signal injection", "Calibration manipulation"],
+    iec_zone: "Cell/Area Zone (operational)",
+    notes: "Often overlooked in cyber programs but increasingly targeted via L1 controllers (Triton/Trisis style)."
+  },
+  "1": {
+    name: "Level 1 — Basic Control",
+    aka: "Intelligent Devices Layer",
+    description: "Devices that directly monitor and control the physical process. Real-time deterministic control loops execute here.",
+    assets: ["PLCs", "RTUs", "DCS controllers", "Safety Instrumented Systems (SIS)", "Variable Frequency Drives", "Protective relays"],
+    protocols: ["Modbus RTU/TCP", "EtherNet/IP", "PROFINET", "DNP3", "IEC 61850", "CIP", "OPC UA"],
+    threats: ["Logic manipulation", "Firmware tampering", "Stuxnet-style payloads", "Denial of control", "Unauthorized program download"],
+    iec_zone: "Cell/Area Zone (control)",
+    notes: "Highest-impact layer for safety. SIS belongs in its own zone, air-gapped or unidirectionally connected to the BPCS."
+  },
+  "2": {
+    name: "Level 2 — Area Supervisory Control",
+    aka: "Control System / HMI Layer",
+    description: "Supervisory systems for monitoring and controlling a specific area or process unit. Operators interact with the process here.",
+    assets: ["HMIs", "SCADA servers (local)", "Engineering workstations (EWS)", "Local historians", "Alarm servers", "Batch servers"],
+    protocols: ["OPC UA/DA/HDA", "Modbus TCP", "EtherNet/IP", "PROFINET", "Vendor protocols (Siemens S7, Rockwell)"],
+    threats: ["Credential theft on EWS", "HMI defacement", "Project file tampering", "Lateral movement to L1", "Unauthorized engineering access"],
+    iec_zone: "Cell/Area Zone (supervisory)",
+    notes: "EWS is the crown jewel — own it, own the PLCs. Harden, allowlist, monitor heavily."
+  },
+  "3": {
+    name: "Level 3 — Site Operations",
+    aka: "Manufacturing Operations / Site Control",
+    description: "Site-wide systems that manage production workflow. Aggregates data from multiple L2 areas. The OT/IT boundary lives just above here.",
+    assets: ["MES", "Plant historian (PI Server)", "OT domain controllers", "Patch/AV management servers", "Site engineering servers", "Production scheduling servers", "Jump servers"],
+    protocols: ["OPC UA", "SQL", "HTTPS", "SMB", "Kerberos", "LDAP", "WSUS"],
+    threats: ["Ransomware (most common OT-impact entry point)", "Lateral movement from IT", "Credential harvesting", "Supply-chain compromise"],
+    iec_zone: "Site Manufacturing Zone",
+    notes: "Where most ransomware actually lands and stops production. Treat L3 as the last line of defense before the plant floor."
+  },
+  "3.5": {
+    name: "Level 3.5 — Industrial DMZ",
+    aka: "iDMZ / OT DMZ",
+    description: "The DMZ that brokers all traffic between IT (L4/L5) and OT (L3 and below). No direct IT-to-OT connections should exist.",
+    assets: ["Reverse proxies", "Replication historian", "Jump hosts / bastion hosts", "Patch staging servers", "AV definition relay", "Remote access gateways (Cyolo, Dispel, Secomea)", "Data diodes / unidirectional gateways"],
+    protocols: ["HTTPS (terminated)", "Reverse-proxied OPC UA", "SFTP", "Authenticated jump-host RDP/SSH"],
+    threats: ["Misconfigured firewall rules", "Dual-homed hosts", "Unauthorized remote access", "DMZ-host compromise pivoting to OT"],
+    iec_zone: "Conduit (between Enterprise and Site Manufacturing zones)",
+    notes: "Per IEC 62443 and NIST 800-82, the iDMZ is mandatory architecture. Every protocol crossing must terminate here."
+  },
+  "4": {
+    name: "Level 4 — Site Business Planning",
+    aka: "Site IT / Business Network",
+    description: "Site-level business systems. ERP modules, email, file servers, scheduling, inventory. Standard enterprise IT.",
+    assets: ["ERP terminals", "Email servers", "File servers", "Site IT domain controllers", "Business workstations", "Print servers"],
+    protocols: ["HTTPS", "SMTP", "SMB", "Kerberos", "LDAP", "DNS"],
+    threats: ["Phishing", "Ransomware", "Business email compromise", "Initial access vector for OT attacks"],
+    iec_zone: "Enterprise Zone",
+    notes: "Treated as IT for cyber ownership, but proximity to OT means compromise here is a precursor to plant impact."
+  },
+  "5": {
+    name: "Level 5 — Enterprise Network",
+    aka: "Corporate / Enterprise IT",
+    description: "Corporate-wide IT infrastructure. Cloud services, corporate WAN, enterprise apps, internet edge.",
+    assets: ["Corporate ERP (SAP, Oracle)", "Cloud services (M365, Azure, AWS)", "Enterprise data centers", "Corporate WAN", "Internet edge"],
+    protocols: ["HTTPS", "Cloud APIs", "SD-WAN", "MPLS"],
+    threats: ["Standard enterprise threats — phishing, credential stuffing, supply chain"],
+    iec_zone: "Enterprise Zone",
+    notes: "Maximum distance from the process. Compromise here is an OT problem only when iDMZ controls fail."
+  }
 };
 
-// ––––– REFERENCE DATA: IEC 62443-3-3 FOUNDATIONAL REQUIREMENTS –––––
-// Public summary based on IEC 62443-3-3:2013. The official text is paywalled.
-const IEC = {
-“FR 1”: {
-name: “FR 1 — Identification and Authentication Control (IAC)”,
-purpose: “Identify and authenticate all users (humans, software processes, devices) before granting access to the IACS.”,
-purdue_levels: [“1”, “2”, “3”, “3.5”, “4”],
-related_nist: [“IA-2”, “IA-3”, “IA-5”, “IA-8”],
-srs: [“SR 1.1”, “SR 1.2”, “SR 1.3”, “SR 1.4”, “SR 1.5”, “SR 1.6”, “SR 1.7”, “SR 1.8”, “SR 1.9”, “SR 1.10”, “SR 1.11”, “SR 1.12”, “SR 1.13”]
-},
-“FR 2”: {
-name: “FR 2 — Use Control (UC)”,
-purpose: “Enforce assigned privileges of authenticated users to perform requested actions and monitor the use of these privileges.”,
-purdue_levels: [“1”, “2”, “3”, “3.5”],
-related_nist: [“AC-2”, “AC-3”, “AC-6”, “AU-2”, “AU-3”],
-srs: [“SR 2.1”, “SR 2.2”, “SR 2.3”, “SR 2.4”, “SR 2.5”, “SR 2.6”, “SR 2.7”, “SR 2.8”, “SR 2.9”, “SR 2.10”, “SR 2.11”, “SR 2.12”]
-},
-“FR 3”: {
-name: “FR 3 — System Integrity (SI)”,
-purpose: “Ensure the integrity of the IACS to prevent unauthorized manipulation.”,
-purdue_levels: [“0”, “1”, “2”, “3”],
-related_nist: [“SI-3”, “SI-7”, “SC-8”, “SC-16”],
-srs: [“SR 3.1”, “SR 3.2”, “SR 3.3”, “SR 3.4”, “SR 3.5”, “SR 3.6”, “SR 3.7”, “SR 3.8”, “SR 3.9”]
-},
-“FR 4”: {
-name: “FR 4 — Data Confidentiality (DC)”,
-purpose: “Ensure the confidentiality of information on communication channels and in data repositories to prevent unauthorized disclosure.”,
-purdue_levels: [“2”, “3”, “3.5”, “4”],
-related_nist: [“SC-8”, “SC-12”, “SC-13”, “SC-28”],
-srs: [“SR 4.1”, “SR 4.2”, “SR 4.3”]
-},
-“FR 5”: {
-name: “FR 5 — Restricted Data Flow (RDF)”,
-purpose: “Segment the control system via zones and conduits to limit the unnecessary flow of data.”,
-purdue_levels: [“1”, “2”, “3”, “3.5”, “4”],
-related_nist: [“AC-4”, “SC-7”],
-srs: [“SR 5.1”, “SR 5.2”, “SR 5.3”, “SR 5.4”]
-},
-“FR 6”: {
-name: “FR 6 — Timely Response to Events (TRE)”,
-purpose: “Respond to security violations by notifying the proper authority, reporting needed evidence, and taking timely corrective action.”,
-purdue_levels: [“1”, “2”, “3”, “3.5”],
-related_nist: [“IR-4”, “IR-5”, “IR-6”, “AU-6”],
-srs: [“SR 6.1”, “SR 6.2”]
-},
-“FR 7”: {
-name: “FR 7 — Resource Availability (RA)”,
-purpose: “Ensure the availability of the control system against the degradation or denial of essential services.”,
-purdue_levels: [“0”, “1”, “2”, “3”],
-related_nist: [“CP-2”, “CP-9”, “CP-10”, “SC-5”],
-srs: [“SR 7.1”, “SR 7.2”, “SR 7.3”, “SR 7.4”, “SR 7.5”, “SR 7.6”, “SR 7.7”, “SR 7.8”]
-},
-// System Requirements (SRs) — most important ones with descriptions
-“SR 1.1”: {
-name: “SR 1.1 — Human user identification and authentication”,
-fr: “FR 1”,
-purpose: “The control system shall provide the capability to identify and authenticate all human users on all interfaces capable of human user access.”,
-purdue_levels: [“2”, “3”, “3.5”],
-notes: “Includes local HMI logins, EWS access, jump-host authentication. Shared accounts are a common gap.”
-},
-“SR 1.2”: {
-name: “SR 1.2 — Software process and device identification and authentication”,
-fr: “FR 1”,
-purpose: “The control system shall provide the capability to identify and authenticate all software processes and devices.”,
-purdue_levels: [“1”, “2”, “3”],
-notes: “Device-to-device auth is rare in legacy systems but increasingly possible with OPC UA and PROFINET Security.”
-},
-“SR 1.3”: {
-name: “SR 1.3 — Account management”,
-fr: “FR 1”,
-purpose: “Support management of all accounts including establishment, activation, modification, disablement, and removal.”,
-purdue_levels: [“2”, “3”, “3.5”],
-notes: “Tie to identity provider (AD) where possible. Local accounts on PLCs are a known weak point.”
-},
-“SR 1.5”: {
-name: “SR 1.5 — Authenticator management”,
-fr: “FR 1”,
-purpose: “Initialize, change, and protect all authenticators (passwords, keys, certificates).”,
-purdue_levels: [“1”, “2”, “3”, “3.5”],
-notes: “Default credentials on field devices are still the #1 finding in OT assessments.”
-},
-“SR 1.7”: {
-name: “SR 1.7 — Strength of password-based authentication”,
-fr: “FR 1”,
-purpose: “Configure password strength based on minimum length and variety of character types.”,
-purdue_levels: [“2”, “3”, “3.5”],
-notes: “Many L1/L2 devices have hard limits (e.g., 8 chars). Document the constraint and compensate elsewhere.”
-},
-“SR 2.1”: {
-name: “SR 2.1 — Authorization enforcement”,
-fr: “FR 2”,
-purpose: “Enforce authorizations assigned to all human users for controlling use of the IACS.”,
-purdue_levels: [“1”, “2”, “3”, “3.5”],
-notes: “Role-based access on HMI, EWS, and engineering tools. Don’t give every operator full engineering rights.”
-},
-“SR 2.4”: {
-name: “SR 2.4 — Mobile code”,
-fr: “FR 2”,
-purpose: “Enforce usage restrictions on mobile code technologies (ActiveX, JavaScript, macros).”,
-purdue_levels: [“2”, “3”, “3.5”],
-notes: “Macro-enabled Office files are still a major OT compromise vector.”
-},
-“SR 2.8”: {
-name: “SR 2.8 — Auditable events”,
-fr: “FR 2”,
-purpose: “Generate audit records relevant to security for access control, request errors, OS events, control system events, backup/restore, configuration changes, and audit log events.”,
-purdue_levels: [“1”, “2”, “3”, “3.5”],
-notes: “L1 devices often can’t generate logs. Capture from L2/L3 and from network sensors (Tenable OT, Claroty, Dragos).”
-},
-“SR 3.1”: {
-name: “SR 3.1 — Communication integrity”,
-fr: “FR 3”,
-purpose: “Protect the integrity of transmitted information.”,
-purdue_levels: [“1”, “2”, “3”, “3.5”],
-notes: “Most legacy OT protocols (Modbus, DNP3 v2) have no integrity. Mitigate via segmentation, not protocol upgrade.”
-},
-“SR 3.2”: {
-name: “SR 3.2 — Malicious code protection”,
-fr: “FR 3”,
-purpose: “Employ protection mechanisms to prevent, detect, report, and mitigate the effects of malicious code.”,
-purdue_levels: [“2”, “3”, “3.5”],
-notes: “Application allowlisting > AV for L2 EWS/HMI. AV signature updates require iDMZ relay.”
-},
-“SR 3.4”: {
-name: “SR 3.4 — Software and information integrity”,
-fr: “FR 3”,
-purpose: “Detect, record, report, and protect against unauthorized changes to software and information at rest.”,
-purdue_levels: [“1”, “2”, “3”],
-notes: “PLC project file integrity monitoring is increasingly available from OT IDS vendors.”
-},
-“SR 5.1”: {
-name: “SR 5.1 — Network segmentation”,
-fr: “FR 5”,
-purpose: “Logically segment control system networks from non-control system networks and from safety-instrumented systems.”,
-purdue_levels: [“3”, “3.5”, “4”],
-notes: “The iDMZ requirement. Cell/Area Zones segmented from each other where feasible.”
-},
-“SR 5.2”: {
-name: “SR 5.2 — Zone boundary protection”,
-fr: “FR 5”,
-purpose: “Monitor and control communications at zone boundaries to enforce the compartmentalization defined in the risk-based zones and conduits model.”,
-purdue_levels: [“3”, “3.5”],
-notes: “Stateful firewalls at every zone conduit. Default-deny with explicit allowlist.”
-},
-“SR 6.2”: {
-name: “SR 6.2 — Continuous monitoring”,
-fr: “FR 6”,
-purpose: “Monitor the control system to detect security incidents.”,
-purdue_levels: [“2”, “3”, “3.5”],
-notes: “OT-aware passive network monitoring is the standard answer (Dragos, Claroty, Tenable OT, Nozomi).”
-},
-“SR 7.3”: {
-name: “SR 7.3 — Control system backup”,
-fr: “FR 7”,
-purpose: “Identify the necessary backup procedures and the necessary backup data to support essential functions.”,
-purdue_levels: [“1”, “2”, “3”],
-notes: “PLC project files, HMI configs, historian databases, EWS golden images. Test restores regularly.”
-}
+// ---------- IEC 62443-3-3 ----------
+var IEC = {
+  "FR 1": {
+    name: "FR 1 — Identification and Authentication Control",
+    purpose: "Identify and authenticate all users, software processes, and devices before granting IACS access.",
+    purdue_levels: ["1", "2", "3", "3.5", "4"],
+    related_nist: ["IA-2", "IA-3", "IA-5", "IA-8"],
+    srs: ["SR 1.1", "SR 1.2", "SR 1.3", "SR 1.4", "SR 1.5", "SR 1.6", "SR 1.7", "SR 1.8", "SR 1.9", "SR 1.10", "SR 1.11", "SR 1.12", "SR 1.13"]
+  },
+  "FR 2": {
+    name: "FR 2 — Use Control",
+    purpose: "Enforce assigned privileges of authenticated users and monitor their use.",
+    purdue_levels: ["1", "2", "3", "3.5"],
+    related_nist: ["AC-2", "AC-3", "AC-6", "AU-2", "AU-3"],
+    srs: ["SR 2.1", "SR 2.2", "SR 2.3", "SR 2.4", "SR 2.5", "SR 2.6", "SR 2.7", "SR 2.8", "SR 2.9", "SR 2.10", "SR 2.11", "SR 2.12"]
+  },
+  "FR 3": {
+    name: "FR 3 — System Integrity",
+    purpose: "Ensure the integrity of the IACS to prevent unauthorized manipulation.",
+    purdue_levels: ["0", "1", "2", "3"],
+    related_nist: ["SI-3", "SI-7", "SC-8", "SC-16"],
+    srs: ["SR 3.1", "SR 3.2", "SR 3.3", "SR 3.4", "SR 3.5", "SR 3.6", "SR 3.7", "SR 3.8", "SR 3.9"]
+  },
+  "FR 4": {
+    name: "FR 4 — Data Confidentiality",
+    purpose: "Ensure the confidentiality of information on communication channels and in data repositories.",
+    purdue_levels: ["2", "3", "3.5", "4"],
+    related_nist: ["SC-8", "SC-12", "SC-13", "SC-28"],
+    srs: ["SR 4.1", "SR 4.2", "SR 4.3"]
+  },
+  "FR 5": {
+    name: "FR 5 — Restricted Data Flow",
+    purpose: "Segment the control system via zones and conduits to limit unnecessary data flow.",
+    purdue_levels: ["1", "2", "3", "3.5", "4"],
+    related_nist: ["AC-4", "SC-7"],
+    srs: ["SR 5.1", "SR 5.2", "SR 5.3", "SR 5.4"]
+  },
+  "FR 6": {
+    name: "FR 6 — Timely Response to Events",
+    purpose: "Respond to security violations through notification, evidence collection, and corrective action.",
+    purdue_levels: ["1", "2", "3", "3.5"],
+    related_nist: ["IR-4", "IR-5", "IR-6", "AU-6"],
+    srs: ["SR 6.1", "SR 6.2"]
+  },
+  "FR 7": {
+    name: "FR 7 — Resource Availability",
+    purpose: "Ensure the availability of the control system against degradation or denial of essential services.",
+    purdue_levels: ["0", "1", "2", "3"],
+    related_nist: ["CP-2", "CP-9", "CP-10", "SC-5"],
+    srs: ["SR 7.1", "SR 7.2", "SR 7.3", "SR 7.4", "SR 7.5", "SR 7.6", "SR 7.7", "SR 7.8"]
+  },
+  "SR 1.1": {
+    name: "SR 1.1 — Human user identification and authentication",
+    fr: "FR 1",
+    purpose: "Identify and authenticate all human users on all interfaces capable of human user access.",
+    purdue_levels: ["2", "3", "3.5"],
+    notes: "Includes local HMI logins, EWS access, jump-host authentication. Shared accounts are a common gap."
+  },
+  "SR 1.2": {
+    name: "SR 1.2 — Software process and device identification and authentication",
+    fr: "FR 1",
+    purpose: "Identify and authenticate all software processes and devices.",
+    purdue_levels: ["1", "2", "3"],
+    notes: "Device-to-device auth is rare in legacy systems but increasingly possible with OPC UA and PROFINET Security."
+  },
+  "SR 1.3": {
+    name: "SR 1.3 — Account management",
+    fr: "FR 1",
+    purpose: "Support management of all accounts including establishment, activation, modification, disablement, and removal.",
+    purdue_levels: ["2", "3", "3.5"],
+    notes: "Tie to identity provider (AD) where possible. Local accounts on PLCs are a known weak point."
+  },
+  "SR 1.5": {
+    name: "SR 1.5 — Authenticator management",
+    fr: "FR 1",
+    purpose: "Initialize, change, and protect all authenticators (passwords, keys, certificates).",
+    purdue_levels: ["1", "2", "3", "3.5"],
+    notes: "Default credentials on field devices remain the #1 finding in OT assessments."
+  },
+  "SR 1.7": {
+    name: "SR 1.7 — Strength of password-based authentication",
+    fr: "FR 1",
+    purpose: "Configure password strength based on minimum length and character variety.",
+    purdue_levels: ["2", "3", "3.5"],
+    notes: "Many L1/L2 devices have hard limits (e.g., 8 chars). Document the constraint and compensate elsewhere."
+  },
+  "SR 2.1": {
+    name: "SR 2.1 — Authorization enforcement",
+    fr: "FR 2",
+    purpose: "Enforce authorizations assigned to all human users for controlling use of the IACS.",
+    purdue_levels: ["1", "2", "3", "3.5"],
+    notes: "Role-based access on HMI, EWS, and engineering tools. Don't give every operator full engineering rights."
+  },
+  "SR 2.4": {
+    name: "SR 2.4 — Mobile code",
+    fr: "FR 2",
+    purpose: "Enforce usage restrictions on mobile code technologies (ActiveX, JavaScript, macros).",
+    purdue_levels: ["2", "3", "3.5"],
+    notes: "Macro-enabled Office files remain a major OT compromise vector."
+  },
+  "SR 2.8": {
+    name: "SR 2.8 — Auditable events",
+    fr: "FR 2",
+    purpose: "Generate audit records for access control, request errors, OS events, control system events, backup/restore, configuration changes, and audit log events.",
+    purdue_levels: ["1", "2", "3", "3.5"],
+    notes: "L1 devices often can't generate logs. Capture from L2/L3 and from network sensors (Tenable OT, Claroty, Dragos)."
+  },
+  "SR 3.1": {
+    name: "SR 3.1 — Communication integrity",
+    fr: "FR 3",
+    purpose: "Protect the integrity of transmitted information.",
+    purdue_levels: ["1", "2", "3", "3.5"],
+    notes: "Most legacy OT protocols (Modbus, DNP3 v2) have no integrity. Mitigate via segmentation, not protocol upgrade."
+  },
+  "SR 3.2": {
+    name: "SR 3.2 — Malicious code protection",
+    fr: "FR 3",
+    purpose: "Prevent, detect, report, and mitigate malicious code.",
+    purdue_levels: ["2", "3", "3.5"],
+    notes: "Application allowlisting is preferred over signature AV at L2. AV signature updates require iDMZ relay."
+  },
+  "SR 3.4": {
+    name: "SR 3.4 — Software and information integrity",
+    fr: "FR 3",
+    purpose: "Detect, record, report, and protect against unauthorized changes to software and information at rest.",
+    purdue_levels: ["1", "2", "3"],
+    notes: "PLC project file integrity monitoring is increasingly available from OT IDS vendors."
+  },
+  "SR 5.1": {
+    name: "SR 5.1 — Network segmentation",
+    fr: "FR 5",
+    purpose: "Logically segment control system networks from non-control system networks and from safety-instrumented systems.",
+    purdue_levels: ["3", "3.5", "4"],
+    notes: "The iDMZ requirement. Cell/Area Zones segmented from each other where feasible."
+  },
+  "SR 5.2": {
+    name: "SR 5.2 — Zone boundary protection",
+    fr: "FR 5",
+    purpose: "Monitor and control communications at zone boundaries to enforce the risk-based zones and conduits model.",
+    purdue_levels: ["3", "3.5"],
+    notes: "Stateful firewalls at every zone conduit. Default-deny with explicit allowlist."
+  },
+  "SR 6.2": {
+    name: "SR 6.2 — Continuous monitoring",
+    fr: "FR 6",
+    purpose: "Monitor the control system to detect security incidents.",
+    purdue_levels: ["2", "3", "3.5"],
+    notes: "OT-aware passive network monitoring is the standard answer (Dragos, Claroty, Tenable OT, Nozomi)."
+  },
+  "SR 7.3": {
+    name: "SR 7.3 — Control system backup",
+    fr: "FR 7",
+    purpose: "Identify backup procedures and data necessary to support essential functions.",
+    purdue_levels: ["1", "2", "3"],
+    notes: "PLC project files, HMI configs, historian databases, EWS golden images. Test restores regularly."
+  }
 };
 
-// ––––– REFERENCE DATA: NIST SP 800-82r3 KEY CONTROL OVERLAYS –––––
-// Summary of the OT-specific tailoring of NIST SP 800-53 controls per SP 800-82r3
-const NIST = {
-“AC-2”: {
-name: “AC-2 — Account Management”,
-family: “Access Control”,
-purpose: “Manage system accounts including establishment, modification, review, and removal.”,
-ot_overlay: “OT systems often rely on shared role accounts due to operational constraints. Where shared accounts are unavoidable, compensate with physical access controls, session logging, and out-of-band identity verification.”,
-purdue_levels: [“2”, “3”, “3.5”],
-related_iec: [“SR 1.3”, “SR 1.4”]
-},
-“AC-3”: {
-name: “AC-3 — Access Enforcement”,
-family: “Access Control”,
-purpose: “Enforce approved authorizations for logical access to the system.”,
-ot_overlay: “Enforcement at the device level is often impossible on legacy controllers. Compensate at L2 (HMI/EWS) and at network conduits.”,
-purdue_levels: [“1”, “2”, “3”, “3.5”],
-related_iec: [“SR 2.1”]
-},
-“AC-4”: {
-name: “AC-4 — Information Flow Enforcement”,
-family: “Access Control”,
-purpose: “Control information flows within the system and between connected systems.”,
-ot_overlay: “Implemented via the iDMZ (Level 3.5), unidirectional gateways for safety-critical zones, and protocol-aware firewalls at conduits.”,
-purdue_levels: [“3”, “3.5”, “4”],
-related_iec: [“SR 5.1”, “SR 5.2”]
-},
-“AC-6”: {
-name: “AC-6 — Least Privilege”,
-family: “Access Control”,
-purpose: “Employ the principle of least privilege.”,
-ot_overlay: “Engineering rights restricted to engineering staff. Operators get operate-only HMI roles. Vendor accounts disabled by default and enabled only during sanctioned remote-support sessions.”,
-purdue_levels: [“1”, “2”, “3”, “3.5”],
-related_iec: [“SR 2.1”]
-},
-“AU-2”: {
-name: “AU-2 — Event Logging”,
-family: “Audit and Accountability”,
-purpose: “Identify the types of events the system is capable of logging.”,
-ot_overlay: “Many L1 devices cannot log. NIST SP 800-82r3 recommends capturing equivalent telemetry from L2 systems and OT-aware network sensors.”,
-purdue_levels: [“2”, “3”, “3.5”],
-related_iec: [“SR 2.8”]
-},
-“AU-6”: {
-name: “AU-6 — Audit Record Review, Analysis, and Reporting”,
-family: “Audit and Accountability”,
-purpose: “Review and analyze audit records for indications of inappropriate or unusual activity.”,
-ot_overlay: “Centralize OT logs to a SIEM (often via the iDMZ) but use OT-aware analytics — IT SIEM rules generate noise on OT traffic.”,
-purdue_levels: [“3”, “3.5”],
-related_iec: [“SR 6.1”, “SR 6.2”]
-},
-“CM-2”: {
-name: “CM-2 — Baseline Configuration”,
-family: “Configuration Management”,
-purpose: “Develop, document, and maintain a baseline configuration of the system.”,
-ot_overlay: “Includes PLC program backups, HMI project files, network device configs. Baselines are change-controlled and version-stamped.”,
-purdue_levels: [“1”, “2”, “3”],
-related_iec: [“SR 7.3”]
-},
-“CM-7”: {
-name: “CM-7 — Least Functionality”,
-family: “Configuration Management”,
-purpose: “Configure the system to provide only essential capabilities.”,
-ot_overlay: “Disable unused ports, services, and protocols on PLCs and HMIs. Many vendors ship with web servers, FTP, and Telnet enabled by default.”,
-purdue_levels: [“1”, “2”, “3”],
-related_iec: [“SR 7.6”]
-},
-“CP-9”: {
-name: “CP-9 — System Backup”,
-family: “Contingency Planning”,
-purpose: “Conduct backups of system-level information, user-level information, and security-related documentation.”,
-ot_overlay: “PLC project files, HMI configs, EWS golden images, historian databases. Store backups offline or in immutable storage.”,
-purdue_levels: [“1”, “2”, “3”],
-related_iec: [“SR 7.3”]
-},
-“IA-2”: {
-name: “IA-2 — Identification and Authentication (Organizational Users)”,
-family: “Identification and Authentication”,
-purpose: “Uniquely identify and authenticate organizational users.”,
-ot_overlay: “MFA at the iDMZ jump host is the practical compensating control when MFA is impossible at the HMI/EWS itself.”,
-purdue_levels: [“2”, “3”, “3.5”],
-related_iec: [“SR 1.1”]
-},
-“IR-4”: {
-name: “IR-4 — Incident Handling”,
-family: “Incident Response”,
-purpose: “Implement an incident handling capability for security incidents.”,
-ot_overlay: “OT incident response prioritizes safety and continuity over evidence preservation. Pre-coordinate with operations and engineering before any containment action.”,
-purdue_levels: [“2”, “3”, “3.5”],
-related_iec: [“SR 6.1”]
-},
-“SC-7”: {
-name: “SC-7 — Boundary Protection”,
-family: “System and Communications Protection”,
-purpose: “Monitor and control communications at the external managed interfaces and key internal managed interfaces.”,
-ot_overlay: “The iDMZ is the canonical implementation for the IT/OT boundary. Internal conduits between Cell/Area Zones use stateful firewalls or VLANs with ACLs.”,
-purdue_levels: [“3”, “3.5”, “4”],
-related_iec: [“SR 5.1”, “SR 5.2”]
-},
-“SC-8”: {
-name: “SC-8 — Transmission Confidentiality and Integrity”,
-family: “System and Communications Protection”,
-purpose: “Protect the confidentiality and integrity of transmitted information.”,
-ot_overlay: “Most legacy OT protocols offer neither. Compensate via physical media protection and network segmentation. Where TLS-capable variants exist (OPC UA, MQTT-S), prefer them above L2.”,
-purdue_levels: [“2”, “3”, “3.5”],
-related_iec: [“SR 3.1”, “SR 4.1”]
-},
-“SI-3”: {
-name: “SI-3 — Malicious Code Protection”,
-family: “System and Information Integrity”,
-purpose: “Implement signature-based or non-signature-based malicious code protection mechanisms.”,
-ot_overlay: “Application allowlisting is preferred over signature AV at L2. Signature updates must traverse the iDMZ via a relay; never direct from the internet.”,
-purdue_levels: [“2”, “3”, “3.5”],
-related_iec: [“SR 3.2”]
-},
-“SI-4”: {
-name: “SI-4 — System Monitoring”,
-family: “System and Information Integrity”,
-purpose: “Monitor the system to detect attacks and indicators of potential attacks.”,
-ot_overlay: “Passive OT-aware network monitoring (Dragos, Claroty, Tenable OT, Nozomi) is the standard. Active scanning is restricted to maintenance windows.”,
-purdue_levels: [“2”, “3”, “3.5”],
-related_iec: [“SR 6.2”]
-}
+// ---------- NIST SP 800-82r3 ----------
+var NIST = {
+  "AC-2": {
+    name: "AC-2 — Account Management",
+    family: "Access Control",
+    purpose: "Manage system accounts including establishment, modification, review, and removal.",
+    ot_overlay: "OT systems often rely on shared role accounts due to operational constraints. Where unavoidable, compensate with physical access controls, session logging, and out-of-band identity verification.",
+    purdue_levels: ["2", "3", "3.5"],
+    related_iec: ["SR 1.3", "SR 1.4"]
+  },
+  "AC-3": {
+    name: "AC-3 — Access Enforcement",
+    family: "Access Control",
+    purpose: "Enforce approved authorizations for logical access to the system.",
+    ot_overlay: "Device-level enforcement is often impossible on legacy controllers. Compensate at L2 (HMI/EWS) and at network conduits.",
+    purdue_levels: ["1", "2", "3", "3.5"],
+    related_iec: ["SR 2.1"]
+  },
+  "AC-4": {
+    name: "AC-4 — Information Flow Enforcement",
+    family: "Access Control",
+    purpose: "Control information flows within the system and between connected systems.",
+    ot_overlay: "Implemented via the iDMZ (Level 3.5), unidirectional gateways for safety-critical zones, and protocol-aware firewalls at conduits.",
+    purdue_levels: ["3", "3.5", "4"],
+    related_iec: ["SR 5.1", "SR 5.2"]
+  },
+  "AC-6": {
+    name: "AC-6 — Least Privilege",
+    family: "Access Control",
+    purpose: "Employ the principle of least privilege.",
+    ot_overlay: "Engineering rights restricted to engineering staff. Operators get operate-only HMI roles. Vendor accounts disabled by default and enabled only during sanctioned support sessions.",
+    purdue_levels: ["1", "2", "3", "3.5"],
+    related_iec: ["SR 2.1"]
+  },
+  "AU-2": {
+    name: "AU-2 — Event Logging",
+    family: "Audit and Accountability",
+    purpose: "Identify the types of events the system is capable of logging.",
+    ot_overlay: "Many L1 devices cannot log. NIST SP 800-82r3 recommends capturing equivalent telemetry from L2 systems and OT-aware network sensors.",
+    purdue_levels: ["2", "3", "3.5"],
+    related_iec: ["SR 2.8"]
+  },
+  "AU-6": {
+    name: "AU-6 — Audit Record Review, Analysis, and Reporting",
+    family: "Audit and Accountability",
+    purpose: "Review and analyze audit records for indications of inappropriate or unusual activity.",
+    ot_overlay: "Centralize OT logs to a SIEM (often via the iDMZ) but use OT-aware analytics — IT SIEM rules generate noise on OT traffic.",
+    purdue_levels: ["3", "3.5"],
+    related_iec: ["SR 6.1", "SR 6.2"]
+  },
+  "CM-2": {
+    name: "CM-2 — Baseline Configuration",
+    family: "Configuration Management",
+    purpose: "Develop, document, and maintain a baseline configuration of the system.",
+    ot_overlay: "Includes PLC program backups, HMI project files, network device configs. Baselines are change-controlled and version-stamped.",
+    purdue_levels: ["1", "2", "3"],
+    related_iec: ["SR 7.3"]
+  },
+  "CM-7": {
+    name: "CM-7 — Least Functionality",
+    family: "Configuration Management",
+    purpose: "Configure the system to provide only essential capabilities.",
+    ot_overlay: "Disable unused ports, services, and protocols on PLCs and HMIs. Many vendors ship with web servers, FTP, and Telnet enabled by default.",
+    purdue_levels: ["1", "2", "3"],
+    related_iec: ["SR 7.6"]
+  },
+  "CP-9": {
+    name: "CP-9 — System Backup",
+    family: "Contingency Planning",
+    purpose: "Conduct backups of system-level information, user-level information, and security-related documentation.",
+    ot_overlay: "PLC project files, HMI configs, EWS golden images, historian databases. Store backups offline or in immutable storage.",
+    purdue_levels: ["1", "2", "3"],
+    related_iec: ["SR 7.3"]
+  },
+  "IA-2": {
+    name: "IA-2 — Identification and Authentication",
+    family: "Identification and Authentication",
+    purpose: "Uniquely identify and authenticate organizational users.",
+    ot_overlay: "MFA at the iDMZ jump host is the practical compensating control when MFA is impossible at the HMI/EWS itself.",
+    purdue_levels: ["2", "3", "3.5"],
+    related_iec: ["SR 1.1"]
+  },
+  "IR-4": {
+    name: "IR-4 — Incident Handling",
+    family: "Incident Response",
+    purpose: "Implement an incident handling capability for security incidents.",
+    ot_overlay: "OT incident response prioritizes safety and continuity over evidence preservation. Pre-coordinate with operations and engineering before any containment action.",
+    purdue_levels: ["2", "3", "3.5"],
+    related_iec: ["SR 6.1"]
+  },
+  "SC-7": {
+    name: "SC-7 — Boundary Protection",
+    family: "System and Communications Protection",
+    purpose: "Monitor and control communications at the external managed interfaces and key internal managed interfaces.",
+    ot_overlay: "The iDMZ is the canonical implementation for the IT/OT boundary. Internal conduits between Cell/Area Zones use stateful firewalls or VLANs with ACLs.",
+    purdue_levels: ["3", "3.5", "4"],
+    related_iec: ["SR 5.1", "SR 5.2"]
+  },
+  "SC-8": {
+    name: "SC-8 — Transmission Confidentiality and Integrity",
+    family: "System and Communications Protection",
+    purpose: "Protect the confidentiality and integrity of transmitted information.",
+    ot_overlay: "Most legacy OT protocols offer neither. Compensate via physical media protection and network segmentation. Where TLS-capable variants exist (OPC UA, MQTT-S), prefer them above L2.",
+    purdue_levels: ["2", "3", "3.5"],
+    related_iec: ["SR 3.1", "SR 4.1"]
+  },
+  "SI-3": {
+    name: "SI-3 — Malicious Code Protection",
+    family: "System and Information Integrity",
+    purpose: "Implement signature-based or non-signature-based malicious code protection mechanisms.",
+    ot_overlay: "Application allowlisting is preferred over signature AV at L2. Signature updates must traverse the iDMZ via a relay; never direct from the internet.",
+    purdue_levels: ["2", "3", "3.5"],
+    related_iec: ["SR 3.2"]
+  },
+  "SI-4": {
+    name: "SI-4 — System Monitoring",
+    family: "System and Information Integrity",
+    purpose: "Monitor the system to detect attacks and indicators of potential attacks.",
+    ot_overlay: "Passive OT-aware network monitoring (Dragos, Claroty, Tenable OT, Nozomi) is the standard. Active scanning is restricted to maintenance windows.",
+    purdue_levels: ["2", "3", "3.5"],
+    related_iec: ["SR 6.2"]
+  }
 };
 
-// ––––– ASSET CLASSIFICATION KEYWORDS –––––
-const ASSETS = [
-// L0
-{ keywords: [“sensor”, “transmitter”, “valve”, “actuator”, “drive”, “vfd input”, “limit switch”, “flow meter”, “pressure transmitter”, “temperature transmitter”, “analyzer”], level: “0” },
-// L1
-{ keywords: [“plc”, “programmable logic controller”, “controllogix”, “compactlogix”, “siemens s7”, “s7-1500”, “s7-1200”, “s7-300”, “s7-400”, “schneider m340”, “modicon”, “rtu”, “remote terminal unit”, “dcs controller”, “delta v controller”, “experion controller”, “sis”, “safety instrumented”, “safety plc”, “sil”, “protective relay”, “vfd”, “variable frequency drive”], level: “1” },
-// L2
-{ keywords: [“hmi”, “human machine interface”, “panelview”, “wincc”, “factorytalk view”, “engineering workstation”, “ews”, “rslogix”, “studio 5000”, “tia portal”, “siemens step 7”, “scada server”, “local historian”, “alarm server”, “batch server”], level: “2” },
-// L3
-{ keywords: [“mes”, “manufacturing execution”, “plant historian”, “pi historian”, “pi server”, “osisoft”, “aveva pi”, “historian”, “domain controller”, “wsus”, “patch server”, “av server”, “antivirus server”, “site historian”, “engineering server”, “production scheduling”, “jump server”, “jump host”], level: “3” },
-// L3.5
-{ keywords: [“idmz”, “industrial dmz”, “ot dmz”, “data diode”, “unidirectional gateway”, “waterfall”, “owl”, “reverse proxy”, “bastion”, “secomea”, “dispel”, “cyolo”, “remote access gateway”, “patch staging”, “av relay”, “replication historian”], level: “3.5” },
-// L4
-{ keywords: [“site erp”, “site email”, “business workstation”, “site file server”, “site domain controller”, “print server”], level: “4” },
-// L5
-{ keywords: [“corporate erp”, “sap”, “oracle ebs”, “m365”, “office 365”, “azure”, “aws”, “corporate wan”, “internet edge”, “perimeter firewall”, “corporate email”], level: “5” }
+// ---------- ASSET CLASSIFIER ----------
+var ASSETS = [
+  { keywords: ["sensor", "transmitter", "valve", "actuator", "limit switch", "flow meter", "pressure transmitter", "temperature transmitter", "analyzer"], level: "0" },
+  { keywords: ["plc", "programmable logic controller", "controllogix", "compactlogix", "siemens s7", "s7-1500", "s7-1200", "s7-300", "s7-400", "schneider m340", "modicon", "rtu", "remote terminal unit", "dcs controller", "delta v", "experion", "sis", "safety instrumented", "safety plc", "protective relay", "vfd", "variable frequency drive"], level: "1" },
+  { keywords: ["hmi", "human machine interface", "panelview", "wincc", "factorytalk view", "engineering workstation", "ews", "rslogix", "studio 5000", "tia portal", "step 7", "scada server", "local historian", "alarm server", "batch server"], level: "2" },
+  { keywords: ["mes", "manufacturing execution", "plant historian", "pi historian", "pi server", "osisoft", "aveva pi", "historian", "domain controller", "wsus", "patch server", "av server", "antivirus server", "site historian", "engineering server", "production scheduling", "jump server", "jump host"], level: "3" },
+  { keywords: ["idmz", "industrial dmz", "ot dmz", "data diode", "unidirectional gateway", "waterfall", "owl", "reverse proxy", "bastion", "secomea", "dispel", "cyolo", "remote access gateway", "patch staging", "av relay", "replication historian"], level: "3.5" },
+  { keywords: ["site erp", "site email", "business workstation", "site file server", "site domain controller", "print server"], level: "4" },
+  { keywords: ["corporate erp", "sap", "oracle ebs", "m365", "office 365", "azure", "aws", "corporate wan", "internet edge", "perimeter firewall", "corporate email"], level: "5" }
 ];
 
-// ––––– LOOKUP LOGIC –––––
+// ---------- LOOKUP FUNCTIONS ----------
 function lookupPurdueLevel(value) {
-const lvl = String(value).trim();
-if (PURDUE[lvl]) return { found: true, type: “purdue”, level: lvl, data: PURDUE[lvl] };
-return { found: false, error: `No Purdue level "${lvl}". Valid: 0, 1, 2, 3, 3.5, 4, 5.` };
+  var lvl = String(value).trim();
+  if (PURDUE[lvl]) return { found: true, type: "purdue", data: PURDUE[lvl] };
+  return { found: false, error: "No Purdue level '" + lvl + "'. Valid: 0, 1, 2, 3, 3.5, 4, 5." };
 }
 
 function lookupIec(value) {
-const key = String(value).trim().toUpperCase().replace(/\s+/g, “ “);
-// try exact match
-for (const k of Object.keys(IEC)) {
-if (k.toUpperCase() === key) return { found: true, type: “iec”, id: k, data: IEC[k] };
-}
-// try partial
-for (const k of Object.keys(IEC)) {
-if (k.toUpperCase().includes(key) || key.includes(k.toUpperCase())) {
-return { found: true, type: “iec”, id: k, data: IEC[k] };
-}
-}
-return { found: false, error: `No IEC 62443 entry for "${value}". Try FR 1–7 or SR X.Y format.` };
+  var key = String(value).trim().toUpperCase().replace(/\s+/g, " ");
+  for (var k in IEC) {
+    if (k.toUpperCase() === key) return { found: true, type: "iec", id: k, data: IEC[k] };
+  }
+  for (var k2 in IEC) {
+    if (k2.toUpperCase().indexOf(key) !== -1 || key.indexOf(k2.toUpperCase()) !== -1) {
+      return { found: true, type: "iec", id: k2, data: IEC[k2] };
+    }
+  }
+  return { found: false, error: "No IEC 62443 entry for '" + value + "'. Try FR 1-7 or SR X.Y." };
 }
 
 function lookupNist(value) {
-const key = String(value).trim().toUpperCase();
-if (NIST[key]) return { found: true, type: “nist”, id: key, data: NIST[key] };
-// partial
-for (const k of Object.keys(NIST)) {
-if (k.includes(key) || key.includes(k)) {
-return { found: true, type: “nist”, id: k, data: NIST[k] };
-}
-}
-return { found: false, error: `No NIST 800-82 entry for "${value}". Try control IDs like AC-3, SC-7, IA-2.` };
+  var key = String(value).trim().toUpperCase();
+  if (NIST[key]) return { found: true, type: "nist", id: key, data: NIST[key] };
+  for (var k in NIST) {
+    if (k.indexOf(key) !== -1 || key.indexOf(k) !== -1) {
+      return { found: true, type: "nist", id: k, data: NIST[k] };
+    }
+  }
+  return { found: false, error: "No NIST 800-82 entry for '" + value + "'. Try control IDs like AC-3, SC-7, IA-2." };
 }
 
 function classifyAsset(value) {
-const v = String(value).toLowerCase().trim();
-const matches = [];
-for (const a of ASSETS) {
-for (const kw of a.keywords) {
-if (v.includes(kw)) {
-matches.push({ keyword: kw, level: a.level });
-break;
-}
-}
-}
-if (matches.length === 0) {
-return { found: false, error: `Could not classify "${value}". Try a more specific asset type (e.g., "Allen-Bradley ControlLogix", "PI Historian", "Siemens HMI").` };
-}
-// Highest specificity wins (longest matched keyword)
-matches.sort((a, b) => b.keyword.length - a.keyword.length);
-const winner = matches[0];
-return {
-found: true,
-type: “asset”,
-asset: value,
-matched_keyword: winner.keyword,
-level: winner.level,
-purdue: PURDUE[winner.level],
-other_matches: matches.slice(1, 4)
-};
+  var v = String(value).toLowerCase().trim();
+  var matches = [];
+  for (var i = 0; i < ASSETS.length; i++) {
+    for (var j = 0; j < ASSETS[i].keywords.length; j++) {
+      if (v.indexOf(ASSETS[i].keywords[j]) !== -1) {
+        matches.push({ keyword: ASSETS[i].keywords[j], level: ASSETS[i].level });
+        break;
+      }
+    }
+  }
+  if (matches.length === 0) {
+    return { found: false, error: "Could not classify '" + value + "'. Try a more specific asset type." };
+  }
+  matches.sort(function(a, b) { return b.keyword.length - a.keyword.length; });
+  var winner = matches[0];
+  return {
+    found: true,
+    type: "asset",
+    asset: value,
+    matched_keyword: winner.keyword,
+    level: winner.level,
+    purdue: PURDUE[winner.level],
+    other_matches: matches.slice(1, 4)
+  };
 }
 
 function crossReference(value) {
-const v = String(value).trim().toUpperCase();
-// Try IEC
-for (const k of Object.keys(IEC)) {
-if (k.toUpperCase() === v) {
-const entry = IEC[k];
-const levels = entry.purdue_levels || [];
-return {
-found: true,
-type: “xref”,
-id: k,
-source: “IEC 62443”,
-entry: entry,
-purdue_levels: levels.map(l => ({ level: l, name: PURDUE[l]?.name || l }))
-};
-}
-}
-// Try NIST
-if (NIST[v]) {
-const entry = NIST[v];
-return {
-found: true,
-type: “xref”,
-id: v,
-source: “NIST 800-82”,
-entry: entry,
-purdue_levels: (entry.purdue_levels || []).map(l => ({ level: l, name: PURDUE[l]?.name || l }))
-};
-}
-return { found: false, error: `No cross-reference for "${value}". Try a control ID like SR 2.1, FR 5, or AC-3.` };
+  var v = String(value).trim().toUpperCase();
+  for (var k in IEC) {
+    if (k.toUpperCase() === v) {
+      var entry = IEC[k];
+      var levels = entry.purdue_levels || [];
+      return {
+        found: true,
+        type: "xref",
+        id: k,
+        source: "IEC 62443",
+        entry: entry,
+        purdue_levels: levels.map(function(l) {
+          return { level: l, name: (PURDUE[l] && PURDUE[l].name) ? PURDUE[l].name : l };
+        })
+      };
+    }
+  }
+  if (NIST[v]) {
+    var nentry = NIST[v];
+    var nlevels = nentry.purdue_levels || [];
+    return {
+      found: true,
+      type: "xref",
+      id: v,
+      source: "NIST 800-82",
+      entry: nentry,
+      purdue_levels: nlevels.map(function(l) {
+        return { level: l, name: (PURDUE[l] && PURDUE[l].name) ? PURDUE[l].name : l };
+      })
+    };
+  }
+  return { found: false, error: "No cross-reference for '" + value + "'. Try a control ID like SR 2.1, FR 5, or AC-3." };
 }
 
 function listAll(value) {
-const v = String(value).toLowerCase().trim();
-if (v === “purdue” || v === “”) {
-return { found: true, type: “list”, category: “purdue”, items: Object.keys(PURDUE).map(k => ({ id: k, name: PURDUE[k].name })) };
-}
-if (v === “iec”) {
-return { found: true, type: “list”, category: “iec”, items: Object.keys(IEC).map(k => ({ id: k, name: IEC[k].name })) };
-}
-if (v === “nist”) {
-return { found: true, type: “list”, category: “nist”, items: Object.keys(NIST).map(k => ({ id: k, name: NIST[k].name })) };
-}
-return { found: false, error: `Unknown list category "${value}". Try: purdue, iec, nist.` };
+  var v = String(value).toLowerCase().trim();
+  if (v === "purdue" || v === "") {
+    var pitems = [];
+    for (var k in PURDUE) pitems.push({ id: k, name: PURDUE[k].name });
+    return { found: true, type: "list", category: "Purdue Levels", items: pitems };
+  }
+  if (v === "iec") {
+    var iitems = [];
+    for (var k2 in IEC) iitems.push({ id: k2, name: IEC[k2].name });
+    return { found: true, type: "list", category: "IEC 62443", items: iitems };
+  }
+  if (v === "nist") {
+    var nitems = [];
+    for (var k3 in NIST) nitems.push({ id: k3, name: NIST[k3].name });
+    return { found: true, type: "list", category: "NIST 800-82", items: nitems };
+  }
+  return { found: false, error: "Unknown list category. Try: purdue, iec, nist." };
 }
 
-// ––––– HTML RENDERING –––––
-const STYLE = `
+// ---------- HTML RENDERING ----------
+var STYLE = '<style>' +
+  '.otref{font-family:-apple-system,system-ui,"SF Pro Display",sans-serif;background:linear-gradient(180deg,#0f0f10 0%,#1a1a1c 100%);color:#f5f5f7;padding:20px;border-radius:16px;border:1px solid #2a2a2e;max-width:100%;box-shadow:0 4px 24px rgba(0,0,0,0.4);}' +
+  '.otref h2{color:#d4a843;margin:0 0 4px 0;font-size:20px;font-weight:600;letter-spacing:-0.3px;}' +
+  '.otref h3{color:#8b8b90;margin:18px 0 8px 0;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;}' +
+  '.otref .aka{color:#6e6e73;font-size:13px;margin-bottom:14px;}' +
+  '.otref .desc{font-size:14px;line-height:1.55;color:#d1d1d6;margin-bottom:8px;}' +
+  '.otref ul{margin:6px 0 0 0;padding:0;list-style:none;}' +
+  '.otref li{font-size:13px;line-height:1.6;color:#d1d1d6;padding:4px 0;border-bottom:1px solid #1f1f22;}' +
+  '.otref li:last-child{border-bottom:none;}' +
+  '.otref .meta{background:rgba(212,168,67,0.08);border-left:2px solid #d4a843;padding:10px 14px;margin:14px 0;border-radius:0 8px 8px 0;font-size:13px;color:#d1d1d6;}' +
+  '.otref .meta strong{color:#d4a843;font-weight:600;}' +
+  '.otref .notes{background:rgba(212,168,67,0.06);border:1px solid rgba(212,168,67,0.2);padding:12px 14px;border-radius:10px;font-size:13px;line-height:1.5;color:#e8e8ed;margin-top:14px;}' +
+  '.otref .notes-label{display:block;color:#d4a843;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:6px;}' +
+  '.otref .tag{display:inline-block;background:#d4a843;color:#0f0f10;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;margin:3px 4px 3px 0;letter-spacing:0.3px;}' +
+  '.otref .tag-out{display:inline-block;background:transparent;border:1px solid #3a3a3e;color:#d1d1d6;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:500;margin:3px 4px 3px 0;}' +
+  '.otref .err{color:#ff6b6b;padding:14px;font-size:14px;}' +
+  '</style>';
 
-<style>
-.otref { font-family: -apple-system, system-ui, sans-serif; background: #0a0a0a; color: #e8e8e8; padding: 16px; border-radius: 12px; border: 1px solid #d4a843; max-width: 100%; }
-.otref h2 { color: #d4a843; margin: 0 0 8px 0; font-size: 18px; border-bottom: 1px solid #d4a843; padding-bottom: 6px; }
-.otref h3 { color: #d4a843; margin: 14px 0 6px 0; font-size: 14px; }
-.otref .aka { color: #999; font-size: 12px; font-style: italic; margin-bottom: 8px; }
-.otref .desc { font-size: 13px; line-height: 1.5; margin-bottom: 10px; }
-.otref ul { margin: 4px 0 10px 18px; padding: 0; font-size: 13px; line-height: 1.5; }
-.otref li { margin-bottom: 3px; }
-.otref .meta { background: #1a1a1a; border-left: 3px solid #d4a843; padding: 8px 12px; margin: 8px 0; font-size: 12px; }
-.otref .meta strong { color: #d4a843; }
-.otref .notes { background: #2a1f0a; border: 1px solid #d4a843; padding: 8px 12px; border-radius: 6px; font-size: 12px; margin-top: 10px; }
-.otref .notes::before { content: "⚠ FIELD NOTE: "; color: #d4a843; font-weight: bold; }
-.otref .tag { display: inline-block; background: #d4a843; color: #0a0a0a; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin: 2px; }
-.otref .tag-out { display: inline-block; background: transparent; border: 1px solid #d4a843; color: #d4a843; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin: 2px; }
-.otref .err { color: #ff6b6b; padding: 12px; }
-</style>
-
-`;
+function tagList(arr) {
+  return arr.map(function(x) { return '<span class="tag-out">' + x + '</span>'; }).join('');
+}
 
 function renderPurdue(r) {
-const d = r.data;
-return STYLE + `<div class="otref"> <h2>${d.name}</h2> <div class="aka">${d.aka}</div> <div class="desc">${d.description}</div> <h3>Typical Assets</h3> <ul>${d.assets.map(a => `<li>${a}</li>`).join("")}</ul> <h3>Common Protocols</h3> <div>${d.protocols.map(p => `<span class="tag-out">${p}</span>`).join("")}</div> <h3>Typical Threats</h3> <ul>${d.typical_threats.map(t => `<li>${t}</li>`).join(””)}</ul>
-<div class="meta"><strong>IEC 62443 Zone:</strong> ${d.iec_zone}</div>
-<div class="notes">${d.notes}</div>
-
-  </div>`;
+  var d = r.data;
+  return STYLE + '<div class="otref">' +
+    '<h2>' + d.name + '</h2>' +
+    '<div class="aka">' + d.aka + '</div>' +
+    '<div class="desc">' + d.description + '</div>' +
+    '<h3>Typical Assets</h3>' +
+    '<ul>' + d.assets.map(function(a) { return '<li>' + a + '</li>'; }).join('') + '</ul>' +
+    '<h3>Common Protocols</h3>' +
+    '<div>' + tagList(d.protocols) + '</div>' +
+    '<h3>Typical Threats</h3>' +
+    '<ul>' + d.threats.map(function(t) { return '<li>' + t + '</li>'; }).join('') + '</ul>' +
+    '<div class="meta"><strong>IEC 62443 Zone</strong><br>' + d.iec_zone + '</div>' +
+    '<div class="notes"><span class="notes-label">Field Note</span>' + d.notes + '</div>' +
+    '</div>';
 }
 
 function renderIec(r) {
-const d = r.data;
-if (d.srs) {
-// It’s an FR
-return STYLE + `<div class="otref"> <h2>${d.name}</h2> <div class="desc">${d.purpose}</div> <h3>Applies to Purdue Levels</h3> <div>${d.purdue_levels.map(l => `<span class="tag">L${l}</span>`).join("")}</div> <h3>Related NIST 800-82 Controls</h3> <div>${d.related_nist.map(n => `<span class="tag-out">${n}</span>`).join("")}</div> <h3>System Requirements (SRs)</h3> <div>${d.srs.map(s => `<span class="tag-out">${s}</span>`).join("")}</div> </div>`;
-} else {
-// It’s an SR
-return STYLE + `<div class="otref"> <h2>${d.name}</h2> <div class="meta"><strong>Parent FR:</strong> ${d.fr}</div> <div class="desc">${d.purpose}</div> <h3>Applies to Purdue Levels</h3> <div>${d.purdue_levels.map(l => `<span class="tag">L${l}</span>`).join("")}</div> ${d.notes ? `<div class="notes">${d.notes}</div>` : ""} </div>`;
-}
+  var d = r.data;
+  if (d.srs) {
+    return STYLE + '<div class="otref">' +
+      '<h2>' + d.name + '</h2>' +
+      '<div class="desc">' + d.purpose + '</div>' +
+      '<h3>Applies to Purdue Levels</h3>' +
+      '<div>' + d.purdue_levels.map(function(l) { return '<span class="tag">L' + l + '</span>'; }).join('') + '</div>' +
+      '<h3>Related NIST 800-82</h3>' +
+      '<div>' + tagList(d.related_nist) + '</div>' +
+      '<h3>System Requirements</h3>' +
+      '<div>' + tagList(d.srs) + '</div>' +
+      '</div>';
+  }
+  return STYLE + '<div class="otref">' +
+    '<h2>' + d.name + '</h2>' +
+    '<div class="meta"><strong>Parent</strong><br>' + d.fr + '</div>' +
+    '<div class="desc">' + d.purpose + '</div>' +
+    '<h3>Applies to Purdue Levels</h3>' +
+    '<div>' + d.purdue_levels.map(function(l) { return '<span class="tag">L' + l + '</span>'; }).join('') + '</div>' +
+    (d.notes ? '<div class="notes"><span class="notes-label">Field Note</span>' + d.notes + '</div>' : '') +
+    '</div>';
 }
 
 function renderNist(r) {
-const d = r.data;
-return STYLE + `<div class="otref"> <h2>${d.name}</h2> <div class="meta"><strong>Family:</strong> ${d.family}</div> <div class="desc">${d.purpose}</div> <h3>OT Overlay (per SP 800-82r3)</h3> <div class="desc">${d.ot_overlay}</div> <h3>Applies to Purdue Levels</h3> <div>${d.purdue_levels.map(l => `<span class="tag">L${l}</span>`).join("")}</div> <h3>Related IEC 62443</h3> <div>${d.related_iec.map(i => `<span class="tag-out">${i}</span>`).join(””)}</div>
-
-  </div>`;
+  var d = r.data;
+  return STYLE + '<div class="otref">' +
+    '<h2>' + d.name + '</h2>' +
+    '<div class="aka">' + d.family + '</div>' +
+    '<div class="desc">' + d.purpose + '</div>' +
+    '<h3>OT Overlay (SP 800-82r3)</h3>' +
+    '<div class="desc">' + d.ot_overlay + '</div>' +
+    '<h3>Applies to Purdue Levels</h3>' +
+    '<div>' + d.purdue_levels.map(function(l) { return '<span class="tag">L' + l + '</span>'; }).join('') + '</div>' +
+    '<h3>Related IEC 62443</h3>' +
+    '<div>' + tagList(d.related_iec) + '</div>' +
+    '</div>';
 }
 
 function renderAsset(r) {
-const p = r.purdue;
-return STYLE + `<div class="otref"> <h2>Asset Classification: ${r.asset}</h2> <div class="meta"><strong>Matched on:</strong> "${r.matched_keyword}"</div> <h3>Purdue Level</h3> <div><span class="tag">L${r.level}</span> ${p.name}</div> <div class="aka">${p.aka}</div> <div class="desc" style="margin-top:8px">${p.description}</div> <div class="meta"><strong>IEC 62443 Zone:</strong> ${p.iec_zone}</div> <h3>Typical Threats at this Layer</h3> <ul>${p.typical_threats.map(t => `<li>${t}</li>`).join("")}</ul> <div class="notes">${p.notes}</div> ${r.other_matches.length > 0 ? `<h3>Other possible classifications</h3><div>${r.other_matches.map(m => `<span class="tag-out">L${m.level} (${m.keyword})</span>`).join(””)}</div>` : “”}
-
-  </div>`;
+  var p = r.purdue;
+  return STYLE + '<div class="otref">' +
+    '<h2>' + r.asset + '</h2>' +
+    '<div class="aka">Matched on: ' + r.matched_keyword + '</div>' +
+    '<h3>Purdue Level</h3>' +
+    '<div><span class="tag">L' + r.level + '</span>&nbsp;' + p.name + '</div>' +
+    '<div class="desc" style="margin-top:10px">' + p.description + '</div>' +
+    '<div class="meta"><strong>IEC 62443 Zone</strong><br>' + p.iec_zone + '</div>' +
+    '<h3>Typical Threats</h3>' +
+    '<ul>' + p.threats.map(function(t) { return '<li>' + t + '</li>'; }).join('') + '</ul>' +
+    '<div class="notes"><span class="notes-label">Field Note</span>' + p.notes + '</div>' +
+    (r.other_matches.length > 0 ? '<h3>Other Possible Classifications</h3><div>' + r.other_matches.map(function(m) { return '<span class="tag-out">L' + m.level + ' (' + m.keyword + ')</span>'; }).join('') + '</div>' : '') +
+    '</div>';
 }
 
 function renderXref(r) {
-return STYLE + `<div class="otref"> <h2>Cross-Reference: ${r.id}</h2> <div class="meta"><strong>Source:</strong> ${r.source}</div> <div class="desc">${r.entry.purpose || r.entry.name}</div> <h3>Applies to Purdue Levels</h3> <ul>${r.purdue_levels.map(l => `<li><span class="tag">L${l.level}</span> ${l.name}</li>`).join(””)}</ul>
-
-  </div>`;
+  return STYLE + '<div class="otref">' +
+    '<h2>' + r.id + '</h2>' +
+    '<div class="aka">' + r.source + '</div>' +
+    '<div class="desc">' + (r.entry.purpose || r.entry.name) + '</div>' +
+    '<h3>Applies to Purdue Levels</h3>' +
+    '<ul>' + r.purdue_levels.map(function(l) { return '<li><span class="tag">L' + l.level + '</span>&nbsp;' + l.name + '</li>'; }).join('') + '</ul>' +
+    '</div>';
 }
 
 function renderList(r) {
-return STYLE + `<div class="otref"> <h2>${r.category.toUpperCase()} — All Entries</h2> <ul>${r.items.map(i => `<li><strong style="color:#d4a843">${i.id}</strong> — ${i.name}</li>`).join(””)}</ul>
-
-  </div>`;
+  return STYLE + '<div class="otref">' +
+    '<h2>' + r.category + '</h2>' +
+    '<ul>' + r.items.map(function(i) { return '<li><strong style="color:#d4a843">' + i.id + '</strong>&nbsp;&nbsp;' + i.name + '</li>'; }).join('') + '</ul>' +
+    '</div>';
 }
 
 function renderError(msg) {
-return STYLE + `<div class="otref"><div class="err">⚠ ${msg}</div></div>`;
+  return STYLE + '<div class="otref"><div class="err">' + msg + '</div></div>';
 }
 
-// ––––– ENTRY POINT –––––
+// ---------- ENTRY POINT ----------
 async function ai_edge_gallery_get_result(data) {
-try {
-const params = JSON.parse(data);
-const qt = params.query_type;
-const v = params.value;
-let r;
-switch (qt) {
-case “purdue_level”: r = lookupPurdueLevel(v); break;
-case “iec_lookup”:   r = lookupIec(v); break;
-case “nist_lookup”:  r = lookupNist(v); break;
-case “asset_classify”: r = classifyAsset(v); break;
-case “cross_reference”: r = crossReference(v); break;
-case “list_all”:     r = listAll(v); break;
-default: return JSON.stringify({ error: `Unknown query_type: ${qt}` });
-}
-if (!r.found) return JSON.stringify({ error: r.error });
-let html;
-switch (r.type) {
-case “purdue”: html = renderPurdue(r); break;
-case “iec”:    html = renderIec(r); break;
-case “nist”:   html = renderNist(r); break;
-case “asset”:  html = renderAsset(r); break;
-case “xref”:   html = renderXref(r); break;
-case “list”:   html = renderList(r); break;
-default: html = renderError(“Internal: unknown result type”);
-}
-return JSON.stringify({ result: html });
-} catch (e) {
-return JSON.stringify({ error: `Skill error: ${e.message}` });
-}
+  try {
+    var params;
+    if (typeof data === 'string') {
+      params = JSON.parse(data);
+    } else if (typeof data === 'object' && data !== null) {
+      params = data;
+    } else {
+      return JSON.stringify({ error: 'Invalid data type: ' + typeof data });
+    }
+
+    var qt = params.query_type;
+    var v = params.value;
+    var r;
+
+    if (qt === 'purdue_level') r = lookupPurdueLevel(v);
+    else if (qt === 'iec_lookup') r = lookupIec(v);
+    else if (qt === 'nist_lookup') r = lookupNist(v);
+    else if (qt === 'asset_classify') r = classifyAsset(v);
+    else if (qt === 'cross_reference') r = crossReference(v);
+    else if (qt === 'list_all') r = listAll(v);
+    else return JSON.stringify({ error: 'Unknown query_type: ' + qt });
+
+    if (!r.found) return JSON.stringify({ error: r.error });
+
+    var html;
+    if (r.type === 'purdue') html = renderPurdue(r);
+    else if (r.type === 'iec') html = renderIec(r);
+    else if (r.type === 'nist') html = renderNist(r);
+    else if (r.type === 'asset') html = renderAsset(r);
+    else if (r.type === 'xref') html = renderXref(r);
+    else if (r.type === 'list') html = renderList(r);
+    else html = renderError('Internal: unknown result type');
+
+    return JSON.stringify({ result: html });
+  } catch (e) {
+    return JSON.stringify({ error: 'Skill error: ' + (e.message || String(e)) });
+  }
 }
 
 window.ai_edge_gallery_get_result = ai_edge_gallery_get_result;
+window.run_js = ai_edge_gallery_get_result;
 </script>
-
 </body>
 </html>
