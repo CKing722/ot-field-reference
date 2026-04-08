@@ -5,27 +5,29 @@ description: Offline reference for OT/ICS cybersecurity. Looks up Purdue Model l
 
 # OT Field Reference
 
-Offline reference for OT/ICS cybersecurity work covering Purdue Model, IEC 62443-3-3, and NIST SP 800-82r3.
+Offline reference for OT/ICS cybersecurity covering Purdue Model, IEC 62443-3-3, and NIST SP 800-82r3.
 
-## When to invoke
+## How to use
 
-Call this skill whenever the user asks about a Purdue level, IEC 62443 zones or requirements, NIST 800-82 controls, OT asset classification, or wants to cross-reference a control to Purdue layers.
-
-## Parameters
-
-Pass a JSON object with:
+When the user asks about Purdue levels, IEC 62443 zones or requirements, NIST 800-82 controls, OT asset classification, or wants to cross-reference a control to Purdue layers, you MUST call the `run_js` tool with a JSON object in this exact schema:
 
 - query_type: one of purdue_level, iec_lookup, nist_lookup, asset_classify, cross_reference, list_all
-- value: a level number, control ID, asset name, or category
+- value: the level number, control ID, asset name, or category
 
 ## Examples
 
-- "What is at Purdue level 2?" becomes query_type=purdue_level, value=2
-- "Tell me about SR 1.1" becomes query_type=iec_lookup, value=SR 1.1
-- "What is AC-3?" becomes query_type=nist_lookup, value=AC-3
-- "Where does an Allen-Bradley ControlLogix sit?" becomes query_type=asset_classify, value=Allen-Bradley ControlLogix
-- "Which Purdue layers does SR 2.1 apply to?" becomes query_type=cross_reference, value=SR 2.1
+User asks "What is at Purdue level 2?" → call run_js with {"query_type": "purdue_level", "value": "2"}
+
+User asks "Tell me about SR 1.1" → call run_js with {"query_type": "iec_lookup", "value": "SR 1.1"}
+
+User asks "What is AC-3?" → call run_js with {"query_type": "nist_lookup", "value": "AC-3"}
+
+User asks "Where does an Allen-Bradley ControlLogix sit?" → call run_js with {"query_type": "asset_classify", "value": "Allen-Bradley ControlLogix"}
+
+User asks "Which Purdue layers does SR 2.1 apply to?" → call run_js with {"query_type": "cross_reference", "value": "SR 2.1"}
+
+User asks "Show me all Purdue levels" → call run_js with {"query_type": "list_all", "value": "purdue"}
 
 ## Output
 
-Returns an HTML card. Present it to the user as-is with a one-line summary above it. Do not paraphrase the card contents.
+The run_js tool returns an HTML card. Present it to the user as-is with a one-line summary above it. Do not paraphrase the card contents.
